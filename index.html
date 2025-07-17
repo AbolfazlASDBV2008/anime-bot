@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پلتفرم انیمه شما</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #0d1117; --bg-secondary: #161b22; --text-color: #c9d1d9;
+            --text-secondary: #8b949e; --border-color: #30363d; --accent-color: hsl(180, 100%, 50%);
+        }
+        body.light {
+            --bg-color: #ffffff; --bg-secondary: #f6f8fa; --text-color: #24292f;
+            --text-secondary: #57606a; --border-color: #d0d7de; --accent-color: hsl(212, 100%, 50%);
+        }
+        body {
+            background-color: var(--bg-color); color: var(--text-color);
+            font-family: 'Vazirmatn', sans-serif;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .bg-secondary { background-color: var(--bg-secondary); }
+        .border-color { border-color: var(--border-color); }
+        .text-secondary { color: var(--text-secondary); }
+        .accent-text { color: var(--accent-color); }
+        .accent-ring:focus { ring-color: var(--accent-color); }
+        .accent-bg { background-color: var(--accent-color); }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
+        .loader { border: 4px solid var(--border-color); border-top-color: var(--accent-color); border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        .page-enter-active { animation: page-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .page-exit-active { animation: page-out 0.4s cubic-bezier(0.7, 0, 0.84, 0) forwards; }
+        @keyframes page-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes page-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(10px); } }
+
+        .glass-ui { background: color-mix(in srgb, var(--bg-secondary) 70%, transparent); backdrop-filter: blur(10px); border: 1px solid var(--border-color); }
+        
+        .result-card:hover { transform: translateY(-10px); box-shadow: 0 0 25px color-mix(in srgb, var(--accent-color) 25%, transparent); }
+        .neon-box { position: relative; border-radius: 12px; }
+        .neon-box::before, .neon-box::after { content: ''; position: absolute; inset: -3px; border-radius: 15px; background: conic-gradient(from var(--angle), hsl(300, 100%, 50%), var(--accent-color), hsl(300, 100%, 50%)); animation: spin-glow 4s linear infinite; }
+        .neon-box::after { filter: blur(20px); }
+        .neon-box img { position: relative; z-index: 1; width: 100%; border-radius: 12px; }
+        @property --angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+        @keyframes spin-glow { to { --angle: 360deg; } }
+
+        .translating-placeholder.is-translating > * { filter: blur(6px); }
+        .translating-placeholder.is-translating::after { content: 'در حال ترجمه...'; position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; background-color: color-mix(in srgb, var(--bg-color) 70%, transparent); font-weight: bold; z-index: 10; }
+        .responsive-iframe-container { position: relative; overflow: hidden; width: 100%; padding-top: 56.25%; }
+        .responsive-iframe { position: absolute; top: 0; left: 0; bottom: 0; right: 0; width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+
+    <header class="sticky top-0 z-30 w-full p-4 glass-ui">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500">
+                Anime<span class="accent-text">Verse</span>
+            </h1>
+            <div id="user-menu" class="relative"></div>
+        </div>
+    </header>
+
+    <main id="main-page" class="container mx-auto p-4 md:p-8">
+        <div id="tabs-container" class="mb-8 border-b border-color flex justify-center">
+            <button data-tab="search" class="tab-button accent-text border-b-2 border-color p-4">جستجو</button>
+            <button data-tab="my-list" class="tab-button text-secondary p-4">لیست من</button>
+        </div>
+        <div id="search-content">
+            <form id="search-form" class="max-w-2xl mx-auto my-12">
+                <div class="relative"><input type="search" id="search-input" class="glass-ui w-full p-4 pr-12 text-lg rounded-full accent-ring focus:outline-none placeholder-gray-500" placeholder="نام انیمه..." required></div>
+            </form>
+            <div id="search-results" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8"></div>
+        </div>
+        <div id="my-list-content" class="hidden text-center grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8"></div>
+        <div id="loader" class="hidden justify-center items-center my-16 flex-col"><div class="loader"></div></div>
+        <div id="message" class="text-center text-secondary my-8 text-lg"></div>
+    </main>
+
+    <section id="details-page" class="hidden"></section>
+
+    <script type="module">
+        // --- CONFIGURATION ---
+        const MAL_CLIENT_ID = "8a1a94e6fd6170b406235f9ef64aa03f";
+        const MAL_CLIENT_SECRET = "ccb1f6806ed7524ddf57000a81e6aace393d55fd030c492f0bd942c64fc69a3b";
+        // The Redirect URI is now set to your live Netlify URL.
+        const REDIRECT_URI = "https://velvety-crumble-195974.netlify.app/";
+        const JIKAN_API_BASE = "https://api.jikan.moe/v4";
+        const CORS_PROXY = "https://corsproxy.io/?";
+
+        // --- DOM Elements ---
+        const mainPage = document.getElementById('main-page');
+        const detailsPage = document.getElementById('details-page');
+        const searchContent = document.getElementById('search-content');
+        const searchForm = document.getElementById('search-form');
+        const searchInput = document.getElementById('search-input');
+        const searchResults = document.getElementById('search-results');
+        const messageDiv = document.getElementById('message');
+        const loader = document.getElementById('loader');
+        const userMenu = document.getElementById('user-menu');
+        const tabsContainer = document.getElementById('tabs-container');
+        const myListContent = document.getElementById('my-list-content');
+
+        // --- State ---
+        let isTransitioning = false;
+        const translationCache = new Map();
+
+        // --- API MANAGER ---
+        const APIManager = {
+            async fetchJikan(endpoint) {
+                try {
+                    const response = await fetch(`${JIKAN_API_BASE}/${endpoint}`);
+                    if (!response.ok) throw new Error(`Jikan API Error: ${response.status}`);
+                    return await response.json();
+                } catch (error) {
+                    throw new Error("خطا در ارتباط با سرور انیمه.");
+                }
+            },
+            async fetchMAL(endpoint, options = {}) {
+                const token = localStorage.getItem('mal_access_token');
+                if (!token) throw new Error("شما وارد نشده‌اید.");
+                try {
+                    const response = await fetch(`${CORS_PROXY}https://api.myanimelist.net/v2/${endpoint}`, {
+                        ...options,
+                        headers: { ...options.headers, 'Authorization': `Bearer ${token}` }
+                    });
+                    if (!response.ok) throw new Error(`MAL API Error: ${response.status}`);
+                    return await response.json();
+                } catch (error) {
+                    throw new Error("خطا در ارتباط با سرور MyAnimeList.");
+                }
+            },
+            async batchTranslate(texts) {
+                const uniqueTexts = [...new Set(texts.filter(t => t && !translationCache.has(t)))];
+                if (uniqueTexts.length === 0) return;
+                try {
+                    const prompt = `Translate the following list of English phrases to Persian. Return a JSON object where keys are the original English phrases and values are their Persian translations. Provide ONLY the JSON object. Phrases: ${JSON.stringify(uniqueTexts)}`;
+                    const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } };
+                    const apiKey = "";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                    const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    if (!response.ok) throw new Error(`Translation API Error: ${response.status}`);
+                    const result = await response.json();
+                    const translatedJson = JSON.parse(result.candidates[0].content.parts[0].text);
+                    for (const [key, value] of Object.entries(translatedJson)) {
+                        translationCache.set(key, value);
+                    }
+                } catch (error) { console.error("Batch Translation Error:", error); }
+            }
+        };
+
+        // --- AUTH MANAGER ---
+        const AuthManager = {
+            pkceCodeVerifier: '',
+            generatePkceVerifier() {
+                const randomBytes = crypto.getRandomValues(new Uint8Array(64));
+                return btoa(String.fromCharCode.apply(null, randomBytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+            },
+            login() {
+                this.pkceCodeVerifier = this.generatePkceVerifier();
+                localStorage.setItem('pkce_code_verifier', this.pkceCodeVerifier);
+                const authUrl = `https://myanimelist.net/v1/oauth2/authorize?response_type=code&client_id=${MAL_CLIENT_ID}&code_challenge=${this.pkceCodeVerifier}&state=RequestID&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+                window.location.href = authUrl;
+            },
+            logout() {
+                localStorage.clear();
+                UIManager.renderUserMenu();
+                UIManager.switchTab('search');
+            },
+            async exchangeCodeForToken(code) {
+                const verifier = localStorage.getItem('pkce_code_verifier');
+                if (!verifier) throw new Error("کد تایید PKCE یافت نشد. لطفاً دوباره تلاش کنید.");
+                
+                const tokenUrl = 'https://myanimelist.net/v1/oauth2/token';
+                const body = new URLSearchParams({
+                    'client_id': MAL_CLIENT_ID, 'client_secret': MAL_CLIENT_SECRET,
+                    'grant_type': 'authorization_code', 'code': code,
+                    'redirect_uri': REDIRECT_URI, 'code_verifier': verifier
+                });
+
+                try {
+                    const response = await fetch(CORS_PROXY + encodeURIComponent(tokenUrl), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: body.toString()
+                    });
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(`خطا در دریافت توکن (${response.status}). پیام سرور: ${errorData.message}`);
+                    }
+                    const data = await response.json();
+                    localStorage.setItem('mal_access_token', data.access_token);
+                    localStorage.setItem('mal_refresh_token', data.refresh_token);
+                    localStorage.removeItem('pkce_code_verifier');
+                    await this.fetchAndStoreUserInfo();
+                    window.history.replaceState({}, document.title, REDIRECT_URI);
+                } catch (error) {
+                    console.error("Token Exchange Error:", error);
+                    throw new Error(`خطا در فرآیند ورود. مطمئن شوید Redirect URI صحیح است.`);
+                }
+            },
+            async fetchAndStoreUserInfo() {
+                try {
+                    const response = await APIManager.fetchMAL(`users/@me`);
+                    localStorage.setItem('mal_user_info', JSON.stringify({ name: response.name, picture: response.picture }));
+                } catch (error) { console.error("Failed to fetch user info:", error); }
+            }
+        };
+
+        // --- UI MANAGER ---
+        const UIManager = {
+            showLoader(show) { loader.style.display = show ? 'flex' : 'none'; },
+            showMessage(text, isError = false) { 
+                messageDiv.textContent = text;
+                messageDiv.classList.toggle('text-red-500', isError);
+                messageDiv.classList.toggle('text-secondary', !isError);
+            },
+            renderUserMenu() {
+                const userInfo = JSON.parse(localStorage.getItem('mal_user_info'));
+                if (userInfo) {
+                    userMenu.innerHTML = `<div class="flex items-center gap-2"><span class="text-sm font-bold">${userInfo.name}</span><img src="${userInfo.picture}" class="w-8 h-8 rounded-full border-2 border-color"><button id="logout-button" class="p-2 rounded-full hover:bg-gray-700" title="خروج"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg></button></div>`;
+                    document.getElementById('logout-button').addEventListener('click', AuthManager.logout);
+                } else {
+                    userMenu.innerHTML = `<button id="login-button" class="accent-bg text-white font-bold py-2 px-4 rounded-lg">ورود با MyAnimeList</button>`;
+                    document.getElementById('login-button').addEventListener('click', () => AuthManager.login());
+                }
+            },
+            switchTab(tabName) {
+                document.querySelectorAll('.tab-button').forEach(t => { t.classList.remove('accent-text', 'border-color'); t.classList.add('text-secondary'); });
+                const activeTab = document.querySelector(`.tab-button[data-tab="${tabName}"]`);
+                activeTab.classList.add('accent-text', 'border-color');
+                activeTab.classList.remove('text-secondary');
+                if (tabName === 'search') {
+                    searchContent.classList.remove('hidden');
+                    myListContent.classList.add('hidden');
+                } else {
+                    searchContent.classList.add('hidden');
+                    myListContent.classList.remove('hidden');
+                    App.loadMyList();
+                }
+            },
+            displayResults(results, container = searchResults) {
+                container.innerHTML = '';
+                if (results.length === 0) {
+                    this.showMessage("هیچ نتیجه‌ای یافت نشد.");
+                    return;
+                }
+                results.forEach(item => {
+                    const node = item.node || item;
+                    const card = document.createElement('div');
+                    card.className = 'result-card rounded-xl overflow-hidden shadow-lg flex flex-col bg-secondary border border-color';
+                    card.innerHTML = `<div class="overflow-hidden rounded-t-xl flex-shrink-0"><img src="${node.main_picture?.large || 'https://placehold.co/400x600/161b22/8b949e?text=بدون+عکس'}" alt="${node.title}" class="w-full h-80 object-cover"></div><div class="p-5 flex flex-col flex-grow"><h3 class="font-bold text-lg truncate flex-grow" title="${node.title}">${node.title}</h3><button class="mt-4 w-full accent-bg text-white font-bold py-2 px-4 rounded-lg transition-opacity hover:opacity-80" data-id="${node.id}">اطلاعات بیشتر</button></div>`;
+                    card.querySelector('button').addEventListener('click', (e) => { e.stopPropagation(); this.showDetailsPage(node.id); });
+                    container.appendChild(card);
+                });
+            },
+            showMainPage() {
+                if (isTransitioning) return; isTransitioning = true;
+                detailsPage.classList.add('page-exit-active');
+                setTimeout(() => {
+                    detailsPage.classList.add('hidden'); detailsPage.classList.remove('page-exit-active');
+                    mainPage.classList.remove('hidden'); mainPage.classList.add('page-enter-active');
+                    detailsPage.innerHTML = ''; isTransitioning = false;
+                }, 400);
+            },
+            async showDetailsPage(id) {
+                // This function is identical to the previous version.
+            }
+        };
+
+        // --- APP INITIALIZER ---
+        const App = {
+            async init() {
+                UIManager.renderUserMenu();
+                this.setupEventListeners();
+                const urlParams = new URLSearchParams(window.location.search);
+                const authCode = urlParams.get('code');
+                if (authCode) {
+                    UIManager.showLoader(true);
+                    UIManager.showMessage('در حال تکمیل فرآیند ورود...');
+                    try {
+                        await AuthManager.exchangeCodeForToken(authCode);
+                        UIManager.renderUserMenu();
+                        UIManager.switchTab('my-list');
+                    } catch (error) {
+                        UIManager.showMessage(error.message, true);
+                    } finally {
+                        UIManager.showLoader(false);
+                        if(!UIManager.messageDiv.textContent.includes("خطا")) UIManager.showMessage('');
+                    }
+                } else {
+                    UIManager.showMessage('برای شروع، نام یک انیمه را جستجو کنید.');
+                }
+            },
+            setupEventListeners() {
+                tabsContainer.addEventListener('click', (e) => {
+                    if (e.target.matches('.tab-button')) UIManager.switchTab(e.target.dataset.tab);
+                });
+                searchForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const query = searchInput.value.trim();
+                    if (!query) return;
+                    searchResults.innerHTML = '';
+                    UIManager.showMessage('');
+                    UIManager.showLoader(true);
+                    try {
+                        const result = await APIManager.fetchJikan(`anime?q=${encodeURIComponent(query)}&limit=20`);
+                        UIManager.displayResults(result.data);
+                    } catch (error) {
+                        UIManager.showMessage(error.message, true);
+                    } finally {
+                        UIManager.showLoader(false);
+                    }
+                });
+            },
+            async loadMyList() {
+                myListContent.innerHTML = '';
+                UIManager.showLoader(true);
+                try {
+                    const response = await APIManager.fetchMAL(`users/@me/animelist?fields=list_status&limit=100&sort=list_updated_at`);
+                    UIManager.displayResults(response.data, myListContent);
+                } catch (error) {
+                    myListContent.innerHTML = `<p class="text-red-500">خطا در دریافت لیست شما: ${error.message}</p>`;
+                } finally {
+                    UIManager.showLoader(false);
+                }
+            }
+        };
+        
+        // --- Full Details Page Logic ---
+        UIManager.showDetailsPage = async function(id) {
+            if (isTransitioning) return; isTransitioning = true;
+            mainPage.classList.add('hidden');
+            detailsPage.innerHTML = `<div class="flex justify-center items-center min-h-screen"><div class="loader"></div></div>`;
+            detailsPage.classList.remove('hidden'); detailsPage.classList.add('page-enter-active');
+            window.scrollTo(0, 0);
+            
+            try {
+                const result = await APIManager.fetchJikan(`anime/${id}/full`);
+                const data = result.data;
+                const detailTermTranslations = { "Currently Airing": "در حال پخش", "Finished Airing": "پخش تمام شده", "Not yet aired": "هنوز پخش نشده", "Original": "اورجینال", "Manga": "مانگا", "Light novel": "لایت ناول", "Web manga": "وب مانگا", "Game": "بازی", "Visual novel": "ویژوال ناول", "Other": "سایر", "TV": "تلویزیونی", "Movie": "سینمایی", "OVA": "او وی ای", "Special": "ویژه", "ONA": "اونا" };
+                const studios = data.studios.map(s => s.name).join(', ') || 'نامشخص';
+                const translatedStatus = detailTermTranslations[data.status] || data.status;
+                const translatedType = detailTermTranslations[data.type] || data.type;
+                const translatedSource = detailTermTranslations[data.source] || data.source;
+
+                detailsPage.innerHTML = `
+                    <button id="back-button" class="fixed top-6 right-6 glass-ui hover:bg-gray-700 font-bold p-3 rounded-full z-20 shadow-lg">&larr;</button>
+                    <div class="container mx-auto p-4 md:p-8 max-w-7xl pb-24">
+                        <div class="flex flex-col md:flex-row md:gap-12">
+                            <div class="w-full md:w-1/3 lg:w-1/4 flex-shrink-0 mb-8 md:mb-0"><div class="neon-box"><img src="${data.images.webp.large_image_url || 'https://placehold.co/400x600/161b22/8b949e?text=بدون+عکس'}" alt="Poster"></div></div>
+                            <div id="main-content-column" class="w-full md:w-2/3 lg:w-3/4">
+                                <div class="translating-placeholder is-translating mb-2"><h2 data-translate-key="title" class="text-4xl lg:text-5xl font-black accent-text">${data.title}</h2></div>
+                                <p class="text-lg text-secondary mb-1 mt-2">عنوان اصلی: ${data.title}</p>
+                                <p class="text-md text-secondary mb-6">عنوان انگلیسی: ${data.title_english || 'ندارد'}</p>
+                                <div class="flex flex-wrap gap-4 mb-8 text-center">
+                                    <div class="glass-ui p-4 rounded-xl flex-grow"><span class="font-bold text-yellow-400 text-3xl">${data.score || 'N/A'}</span><span class="text-xs block text-secondary mt-1">امتیاز</span></div>
+                                    <div class="glass-ui p-4 rounded-xl flex-grow"><span class="font-bold text-3xl">${data.members?.toLocaleString() || 'N/A'}</span><span class="text-xs block text-secondary mt-1">اعضا</span></div>
+                                    <div class="glass-ui p-4 rounded-xl flex-grow"><span class="font-bold text-3xl">#${data.rank?.toLocaleString() || 'N/A'}</span><span class="text-xs block text-secondary mt-1">رتبه</span></div>
+                                </div>
+                                <div class="mb-8"><h3 class="font-bold text-xl mb-3">ژانرها</h3><div id="genres-container" class="flex flex-wrap gap-2">${data.genres.map((g, i) => `<div class="translating-placeholder is-translating"><span data-translate-key="genre_${i}" class="bg-secondary border border-color text-sm font-semibold px-3 py-1 rounded-full">${g.name}</span></div>`).join('')}</div></div>
+                                <div class="mb-8"><h3 class="font-bold text-xl mb-3">خلاصه داستان</h3><div class="translating-placeholder is-translating"><p data-translate-key="synopsis" class="text-secondary text-base leading-relaxed whitespace-pre-wrap">${data.synopsis || 'موجود نیست.'}</p></div></div>
+                                <div class="glass-ui p-6 rounded-xl"><h3 class="font-bold text-xl mb-4">جزئیات</h3><div id="details-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-secondary">
+                                    <p><strong>وضعیت:</strong> ${translatedStatus}</p><p><strong>نوع:</strong> ${translatedType}</p><p><strong>منبع:</strong> ${translatedSource}</p>
+                                    <p><strong>استودیو:</strong> ${studios}</p><p><strong>قسمت‌ها:</strong> ${data.episodes || 'N/A'}</p><p><strong>تاریخ پخش:</strong> ${new Date(data.aired.from).toLocaleDateString('fa-IR')}</p>
+                                </div></div>
+                            </div>
+                        </div>
+                    </div>`;
+                
+                document.getElementById('back-button').addEventListener('click', this.showMainPage);
+                isTransitioning = false;
+                
+                const textsToTranslate = { title: data.title, synopsis: data.synopsis || "", ...Object.fromEntries(data.genres.map((g, i) => [`genre_${i}`, g.name])) };
+                await APIManager.batchTranslate(Object.values(textsToTranslate));
+                document.querySelectorAll('[data-translate-key]').forEach(el => {
+                    const key = el.dataset.translateKey; const originalText = textsToTranslate[key];
+                    if (translationCache.has(originalText)) { el.textContent = translationCache.get(originalText); }
+                    el.parentElement.classList.remove('is-translating');
+                });
+
+                if (data.trailer && data.trailer.embed_url) {
+                    const trailerSection = document.createElement('div');
+                    trailerSection.className = 'mt-8';
+                    trailerSection.innerHTML = `<h3 class="font-bold text-xl mb-4">تریلر</h3><div class="responsive-iframe-container rounded-xl overflow-hidden shadow-lg"><iframe class="responsive-iframe" src="${data.trailer.embed_url.replace('autoplay=1', 'autoplay=0')}" frameborder="0" allowfullscreen></iframe></div>`;
+                    document.getElementById('main-content-column').appendChild(trailerSection);
+                }
+
+                if (data.status === "Currently Airing") {
+                    APIManager.fetchJikan(`anime/${id}/episodes`).then(episodesResult => {
+                        if (episodesResult.data && episodesResult.data.length > 0) {
+                            const lastEpisode = episodesResult.data[episodesResult.data.length - 1];
+                            const detailsGrid = document.getElementById('details-grid');
+                            if (detailsGrid) { const p = document.createElement('p'); p.innerHTML = `<strong>آخرین قسمت:</strong> ${lastEpisode.mal_id} (${new Date(lastEpisode.aired).toLocaleDateString('fa-IR')})`; detailsGrid.appendChild(p); }
+                        }
+                    }).catch(err => console.error("Could not fetch episodes:", err));
+                }
+
+            } catch (error) {
+                detailsPage.innerHTML = `<button id="back-button" class="fixed top-6 right-6 glass-ui hover:bg-gray-700 font-bold p-3 rounded-full z-20 shadow-lg">&larr;</button><div class="flex justify-center items-center min-h-screen"><p class="p-8 text-center text-red-400 text-xl font-bold">${error.message}</p></div>`;
+                document.getElementById('back-button').addEventListener('click', this.showMainPage);
+                isTransitioning = false;
+            }
+        }
+
+        App.init();
+    </script>
+
+</body>
+</html>
+
