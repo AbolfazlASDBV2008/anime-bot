@@ -91,7 +91,7 @@
         // --- CONFIGURATION ---
         const MAL_CLIENT_ID = "8a1a94e6fd6170b406235f9ef64aa03f";
         const MAL_CLIENT_SECRET = "ccb1f6806ed7524ddf57000a81e6aace393d55fd030c492f0bd942c64fc69a3b";
-        // The Redirect URI is now set to your live Netlify URL.
+        // This URI is now hardcoded to your exact Netlify URL for maximum reliability.
         const REDIRECT_URI = "https://velvety-crumble-195974.netlify.app/";
         const JIKAN_API_BASE = "https://api.jikan.moe/v4";
         const CORS_PROXY = "https://corsproxy.io/?";
@@ -204,7 +204,7 @@
                     window.history.replaceState({}, document.title, REDIRECT_URI);
                 } catch (error) {
                     console.error("Token Exchange Error:", error);
-                    throw new Error(`خطا در فرآیند ورود. مطمئن شوید Redirect URI صحیح است.`);
+                    throw new Error(`خطا در فرآیند ورود. مطمئن شوید Redirect URI در تنظیمات MAL صحیح است.`);
                 }
             },
             async fetchAndStoreUserInfo() {
@@ -416,4 +416,3 @@
 
 </body>
 </html>
-
