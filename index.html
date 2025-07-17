@@ -96,17 +96,19 @@
         const CORS_PROXY = "https://corsproxy.io/?";
 
         // --- DOM Elements ---
-        const mainPage = document.getElementById('main-page');
-        const detailsPage = document.getElementById('details-page');
-        const searchContent = document.getElementById('search-content');
-        const searchForm = document.getElementById('search-form');
-        const searchInput = document.getElementById('search-input');
-        const searchResults = document.getElementById('search-results');
-        const messageDiv = document.getElementById('message');
-        const loader = document.getElementById('loader');
-        const userMenu = document.getElementById('user-menu');
-        const tabsContainer = document.getElementById('tabs-container');
-        const myListContent = document.getElementById('my-list-content');
+        const DOMElements = {
+            mainPage: document.getElementById('main-page'),
+            detailsPage: document.getElementById('details-page'),
+            searchContent: document.getElementById('search-content'),
+            searchForm: document.getElementById('search-form'),
+            searchInput: document.getElementById('search-input'),
+            searchResults: document.getElementById('search-results'),
+            messageDiv: document.getElementById('message'),
+            loader: document.getElementById('loader'),
+            userMenu: document.getElementById('user-menu'),
+            tabsContainer: document.getElementById('tabs-container'),
+            myListContent: document.getElementById('my-list-content'),
+        };
 
         // --- State ---
         let isTransitioning = false;
@@ -114,24 +116,25 @@
 
         // --- API MANAGER ---
         const APIManager = {
-            async fetchJikan(endpoint) {
+            async fetchWithProxy(url, options = {}) {
                 try {
-                    const response = await fetch(`${JIKAN_API_BASE}/${endpoint}`);
-                    if (!response.ok) throw new Error(`Jikan API Error: ${response.status}`);
+                    const response = await fetch(CORS_PROXY + encodeURIComponent(url), options);
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+                        throw new Error(`خطا در ارتباط با پروکسی (${response.status}): ${errorData.message}`);
+                    }
                     return await response.json();
-                } catch (error) { throw new Error("خطا در ارتباط با سرور انیمه."); }
+                } catch (error) {
+                    console.error("Proxy Fetch Error:", error);
+                    throw error;
+                }
             },
-            async fetchMAL(endpoint, options = {}) {
-                const token = localStorage.getItem('mal_access_token');
-                if (!token) throw new Error("شما وارد نشده‌اید.");
-                try {
-                    const response = await fetch(`${CORS_PROXY}https://api.myanimelist.net/v2/${endpoint}`, {
-                        ...options,
-                        headers: { ...options.headers, 'Authorization': `Bearer ${token}` }
-                    });
-                    if (!response.ok) throw new Error(`MAL API Error: ${response.status}`);
-                    return await response.json();
-                } catch (error) { throw new Error("خطا در ارتباط با سرور MyAnimeList."); }
+            async fetchJikan(endpoint) {
+                return this.fetchWithProxy(`${JIKAN_API_BASE}/${endpoint}`);
+            },
+            async fetchMAL(endpoint, token) {
+                const url = `https://api.myanimelist.net/v2/${endpoint}`;
+                return this.fetchWithProxy(url, { headers: { 'Authorization': `Bearer ${token}` } });
             },
             async batchTranslate(texts) {
                 const uniqueTexts = [...new Set(texts.filter(t => t && !translationCache.has(t)))];
@@ -154,24 +157,19 @@
 
         // --- AUTH MANAGER ---
         const AuthManager = {
-            pkceCodeVerifier: '',
             generatePkceVerifier() {
                 const randomBytes = crypto.getRandomValues(new Uint8Array(64));
                 return btoa(String.fromCharCode.apply(null, randomBytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
             },
             login() {
-                this.pkceCodeVerifier = this.generatePkceVerifier();
-                localStorage.setItem('pkce_code_verifier', this.pkceCodeVerifier);
-                // Correctly construct the URL without double encoding
+                const pkceCodeVerifier = this.generatePkceVerifier();
+                localStorage.setItem('pkce_code_verifier', pkceCodeVerifier);
                 const params = new URLSearchParams({
-                    response_type: 'code',
-                    client_id: MAL_CLIENT_ID,
-                    code_challenge: this.pkceCodeVerifier,
-                    state: 'RequestID',
+                    response_type: 'code', client_id: MAL_CLIENT_ID,
+                    code_challenge: pkceCodeVerifier, state: 'RequestID',
                     redirect_uri: REDIRECT_URI
                 });
-                const authUrl = `https://myanimelist.net/v1/oauth2/authorize?${params.toString()}`;
-                window.location.href = authUrl;
+                window.location.href = `https://myanimelist.net/v1/oauth2/authorize?${params.toString()}`;
             },
             logout() {
                 localStorage.clear();
@@ -188,31 +186,18 @@
                     'grant_type': 'authorization_code', 'code': code,
                     'redirect_uri': REDIRECT_URI, 'code_verifier': verifier
                 });
-
-                try {
-                    const response = await fetch(CORS_PROXY + encodeURIComponent(tokenUrl), {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: body.toString()
-                    });
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(`خطا در دریافت توکن (${response.status}). پیام سرور: ${errorData.message}`);
-                    }
-                    const data = await response.json();
-                    localStorage.setItem('mal_access_token', data.access_token);
-                    localStorage.setItem('mal_refresh_token', data.refresh_token);
-                    localStorage.removeItem('pkce_code_verifier');
-                    await this.fetchAndStoreUserInfo();
-                    window.history.replaceState({}, document.title, REDIRECT_URI);
-                } catch (error) {
-                    console.error("Token Exchange Error:", error);
-                    throw new Error(`خطا در فرآیند ورود. مطمئن شوید Redirect URI در تنظیمات MAL صحیح است.`);
-                }
+                const data = await APIManager.fetchWithProxy(tokenUrl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() });
+                localStorage.setItem('mal_access_token', data.access_token);
+                localStorage.setItem('mal_refresh_token', data.refresh_token);
+                localStorage.removeItem('pkce_code_verifier');
+                await this.fetchAndStoreUserInfo();
+                window.history.replaceState({}, document.title, REDIRECT_URI);
             },
             async fetchAndStoreUserInfo() {
+                const token = localStorage.getItem('mal_access_token');
+                if (!token) return;
                 try {
-                    const response = await APIManager.fetchMAL(`users/@me`);
+                    const response = await APIManager.fetchMAL(`users/@me`, token);
                     localStorage.setItem('mal_user_info', JSON.stringify({ name: response.name, picture: response.picture }));
                 } catch (error) { console.error("Failed to fetch user info:", error); }
             }
@@ -220,19 +205,19 @@
 
         // --- UI MANAGER ---
         const UIManager = {
-            showLoader(show) { loader.style.display = show ? 'flex' : 'none'; },
+            showLoader(show) { DOMElements.loader.style.display = show ? 'flex' : 'none'; },
             showMessage(text, isError = false) { 
-                messageDiv.textContent = text;
-                messageDiv.classList.toggle('text-red-500', isError);
-                messageDiv.classList.toggle('text-secondary', !isError);
+                DOMElements.messageDiv.textContent = text;
+                DOMElements.messageDiv.classList.toggle('text-red-500', isError);
+                DOMElements.messageDiv.classList.toggle('text-secondary', !isError);
             },
             renderUserMenu() {
                 const userInfo = JSON.parse(localStorage.getItem('mal_user_info'));
                 if (userInfo) {
-                    userMenu.innerHTML = `<div class="flex items-center gap-2"><span class="text-sm font-bold">${userInfo.name}</span><img src="${userInfo.picture}" class="w-8 h-8 rounded-full border-2 border-color"><button id="logout-button" class="p-2 rounded-full hover:bg-gray-700" title="خروج"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg></button></div>`;
+                    DOMElements.userMenu.innerHTML = `<div class="flex items-center gap-2"><span class="text-sm font-bold">${userInfo.name}</span><img src="${userInfo.picture}" class="w-8 h-8 rounded-full border-2 border-color"><button id="logout-button" class="p-2 rounded-full hover:bg-gray-700" title="خروج"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg></button></div>`;
                     document.getElementById('logout-button').addEventListener('click', AuthManager.logout);
                 } else {
-                    userMenu.innerHTML = `<button id="login-button" class="accent-bg text-white font-bold py-2 px-4 rounded-lg">ورود با MyAnimeList</button>`;
+                    DOMElements.userMenu.innerHTML = `<button id="login-button" class="accent-bg text-white font-bold py-2 px-4 rounded-lg">ورود با MyAnimeList</button>`;
                     document.getElementById('login-button').addEventListener('click', () => AuthManager.login());
                 }
             },
@@ -242,17 +227,17 @@
                 activeTab.classList.add('accent-text', 'border-color');
                 activeTab.classList.remove('text-secondary');
                 if (tabName === 'search') {
-                    searchContent.classList.remove('hidden');
-                    myListContent.classList.add('hidden');
+                    DOMElements.searchContent.classList.remove('hidden');
+                    DOMElements.myListContent.classList.add('hidden');
                 } else {
-                    searchContent.classList.add('hidden');
-                    myListContent.classList.remove('hidden');
+                    DOMElements.searchContent.classList.add('hidden');
+                    DOMElements.myListContent.classList.remove('hidden');
                     App.loadMyList();
                 }
             },
-            displayResults(results, container = searchResults) {
+            displayResults(results, container = DOMElements.searchResults) {
                 container.innerHTML = '';
-                if (results.length === 0) {
+                if (!results || results.length === 0) {
                     this.showMessage("هیچ نتیجه‌ای یافت نشد.");
                     return;
                 }
@@ -267,15 +252,86 @@
             },
             showMainPage() {
                 if (isTransitioning) return; isTransitioning = true;
-                detailsPage.classList.add('page-exit-active');
+                DOMElements.detailsPage.classList.add('page-exit-active');
                 setTimeout(() => {
-                    detailsPage.classList.add('hidden'); detailsPage.classList.remove('page-exit-active');
-                    mainPage.classList.remove('hidden'); mainPage.classList.add('page-enter-active');
-                    detailsPage.innerHTML = ''; isTransitioning = false;
+                    DOMElements.detailsPage.classList.add('hidden'); DOMElements.detailsPage.classList.remove('page-exit-active');
+                    DOMElements.mainPage.classList.remove('hidden'); DOMElements.mainPage.classList.add('page-enter-active');
+                    DOMElements.detailsPage.innerHTML = ''; isTransitioning = false;
                 }, 400);
             },
             async showDetailsPage(id) {
-                // This function is identical to the previous version.
+                if (isTransitioning) return; isTransitioning = true;
+                DOMElements.mainPage.classList.add('hidden');
+                DOMElements.detailsPage.innerHTML = `<div class="flex justify-center items-center min-h-screen"><div class="loader"></div></div>`;
+                DOMElements.detailsPage.classList.remove('hidden'); DOMElements.detailsPage.classList.add('page-enter-active');
+                window.scrollTo(0, 0);
+                
+                try {
+                    const result = await APIManager.fetchJikan(`anime/${id}/full`);
+                    const data = result.data;
+                    const detailTermTranslations = { "Currently Airing": "در حال پخش", "Finished Airing": "پخش تمام شده", "Not yet aired": "هنوز پخش نشده", "Original": "اورجینال", "Manga": "مانگا", "Light novel": "لایت ناول", "Web manga": "وب مانگا", "Game": "بازی", "Visual novel": "ویژوال ناول", "Other": "سایر", "TV": "تلویزیونی", "Movie": "سینمایی", "OVA": "او وی ای", "Special": "ویژه", "ONA": "اونا" };
+                    const studios = data.studios.map(s => s.name).join(', ') || 'نامشخص';
+                    const translatedStatus = detailTermTranslations[data.status] || data.status;
+                    const translatedType = detailTermTranslations[data.type] || data.type;
+                    const translatedSource = detailTermTranslations[data.source] || data.source;
+
+                    DOMElements.detailsPage.innerHTML = `
+                        <button id="back-button" class="fixed top-6 right-6 glass-ui hover:bg-gray-700 font-bold p-3 rounded-full z-20 shadow-lg">&larr;</button>
+                        <div class="container mx-auto p-4 md:p-8 max-w-7xl pb-24">
+                            <div class="flex flex-col md:flex-row md:gap-12">
+                                <div class="w-full md:w-1/3 lg:w-1/4 flex-shrink-0 mb-8 md:mb-0"><div class="neon-box"><img src="${data.images.webp.large_image_url || 'https://placehold.co/400x600/161b22/8b949e?text=بدون+عکس'}" alt="Poster"></div></div>
+                                <div id="main-content-column" class="w-full md:w-2/3 lg:w-3/4">
+                                    <div class="translating-placeholder is-translating mb-2"><h2 data-translate-key="title" class="text-4xl lg:text-5xl font-black accent-text">${data.title}</h2></div>
+                                    <p class="text-lg text-secondary mb-1 mt-2">عنوان اصلی: ${data.title}</p>
+                                    <p class="text-md text-secondary mb-6">عنوان انگلیسی: ${data.title_english || 'ندارد'}</p>
+                                    <div class="flex flex-wrap gap-4 mb-8 text-center">
+                                        <div class="glass-ui p-4 rounded-xl flex-grow"><span class="font-bold text-yellow-400 text-3xl">${data.score || 'N/A'}</span><span class="text-xs block text-secondary mt-1">امتیاز</span></div>
+                                        <div class="glass-ui p-4 rounded-xl flex-grow"><span class="font-bold text-3xl">${data.members?.toLocaleString() || 'N/A'}</span><span class="text-xs block text-secondary mt-1">اعضا</span></div>
+                                        <div class="glass-ui p-4 rounded-xl flex-grow"><span class="font-bold text-3xl">#${data.rank?.toLocaleString() || 'N/A'}</span><span class="text-xs block text-secondary mt-1">رتبه</span></div>
+                                    </div>
+                                    <div class="mb-8"><h3 class="font-bold text-xl mb-3">ژانرها</h3><div id="genres-container" class="flex flex-wrap gap-2">${data.genres.map((g, i) => `<div class="translating-placeholder is-translating"><span data-translate-key="genre_${i}" class="bg-secondary border border-color text-sm font-semibold px-3 py-1 rounded-full">${g.name}</span></div>`).join('')}</div></div>
+                                    <div class="mb-8"><h3 class="font-bold text-xl mb-3">خلاصه داستان</h3><div class="translating-placeholder is-translating"><p data-translate-key="synopsis" class="text-secondary text-base leading-relaxed whitespace-pre-wrap">${data.synopsis || 'موجود نیست.'}</p></div></div>
+                                    <div class="glass-ui p-6 rounded-xl"><h3 class="font-bold text-xl mb-4">جزئیات</h3><div id="details-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-secondary">
+                                        <p><strong>وضعیت:</strong> ${translatedStatus}</p><p><strong>نوع:</strong> ${translatedType}</p><p><strong>منبع:</strong> ${translatedSource}</p>
+                                        <p><strong>استودیو:</strong> ${studios}</p><p><strong>قسمت‌ها:</strong> ${data.episodes || 'N/A'}</p><p><strong>تاریخ پخش:</strong> ${new Date(data.aired.from).toLocaleDateString('fa-IR')}</p>
+                                    </div></div>
+                                </div>
+                            </div>
+                        </div>`;
+                    
+                    document.getElementById('back-button').addEventListener('click', this.showMainPage);
+                    isTransitioning = false;
+                    
+                    const textsToTranslate = { title: data.title, synopsis: data.synopsis || "", ...Object.fromEntries(data.genres.map((g, i) => [`genre_${i}`, g.name])) };
+                    await APIManager.batchTranslate(Object.values(textsToTranslate));
+                    document.querySelectorAll('[data-translate-key]').forEach(el => {
+                        const key = el.dataset.translateKey; const originalText = textsToTranslate[key];
+                        if (translationCache.has(originalText)) { el.textContent = translationCache.get(originalText); }
+                        el.parentElement.classList.remove('is-translating');
+                    });
+
+                    if (data.trailer && data.trailer.embed_url) {
+                        const trailerSection = document.createElement('div');
+                        trailerSection.className = 'mt-8';
+                        trailerSection.innerHTML = `<h3 class="font-bold text-xl mb-4">تریلر</h3><div class="responsive-iframe-container rounded-xl overflow-hidden shadow-lg"><iframe class="responsive-iframe" src="${data.trailer.embed_url.replace('autoplay=1', 'autoplay=0')}" frameborder="0" allowfullscreen></iframe></div>`;
+                        document.getElementById('main-content-column').appendChild(trailerSection);
+                    }
+
+                    if (data.status === "Currently Airing") {
+                        APIManager.fetchJikan(`anime/${id}/episodes`).then(episodesResult => {
+                            if (episodesResult.data && episodesResult.data.length > 0) {
+                                const lastEpisode = episodesResult.data[episodesResult.data.length - 1];
+                                const detailsGrid = document.getElementById('details-grid');
+                                if (detailsGrid) { const p = document.createElement('p'); p.innerHTML = `<strong>آخرین قسمت:</strong> ${lastEpisode.mal_id} (${new Date(lastEpisode.aired).toLocaleDateString('fa-IR')})`; detailsGrid.appendChild(p); }
+                            }
+                        }).catch(err => console.error("Could not fetch episodes:", err));
+                    }
+
+                } catch (error) {
+                    detailsPage.innerHTML = `<button id="back-button" class="fixed top-6 right-6 glass-ui hover:bg-gray-700 font-bold p-3 rounded-full z-20 shadow-lg">&larr;</button><div class="flex justify-center items-center min-h-screen"><p class="p-8 text-center text-red-400 text-xl font-bold">${error.message}</p></div>`;
+                    document.getElementById('back-button').addEventListener('click', this.showMainPage);
+                    isTransitioning = false;
+                }
             }
         };
 
@@ -297,21 +353,21 @@
                         UIManager.showMessage(error.message, true);
                     } finally {
                         UIManager.showLoader(false);
-                        if(!UIManager.messageDiv.textContent.includes("خطا")) UIManager.showMessage('');
+                        if(!DOMElements.messageDiv.textContent.includes("خطا")) UIManager.showMessage('');
                     }
                 } else {
                     UIManager.showMessage('برای شروع، نام یک انیمه را جستجو کنید.');
                 }
             },
             setupEventListeners() {
-                tabsContainer.addEventListener('click', (e) => {
+                DOMElements.tabsContainer.addEventListener('click', (e) => {
                     if (e.target.matches('.tab-button')) UIManager.switchTab(e.target.dataset.tab);
                 });
-                searchForm.addEventListener('submit', async (e) => {
+                DOMElements.searchForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
-                    const query = searchInput.value.trim();
+                    const query = DOMElements.searchInput.value.trim();
                     if (!query) return;
-                    searchResults.innerHTML = '';
+                    DOMElements.searchResults.innerHTML = '';
                     UIManager.showMessage('');
                     UIManager.showLoader(true);
                     try {
@@ -325,95 +381,20 @@
                 });
             },
             async loadMyList() {
-                myListContent.innerHTML = '';
+                DOMElements.myListContent.innerHTML = '';
                 UIManager.showLoader(true);
                 try {
-                    const response = await APIManager.fetchMAL(`users/@me/animelist?fields=list_status&limit=100&sort=list_updated_at`);
-                    UIManager.displayResults(response.data, myListContent);
+                    const token = localStorage.getItem('mal_access_token');
+                    const response = await APIManager.fetchMAL(`users/@me/animelist?fields=list_status&limit=100&sort=list_updated_at`, token);
+                    UIManager.displayResults(response.data, DOMElements.myListContent);
                 } catch (error) {
-                    myListContent.innerHTML = `<p class="text-red-500">خطا در دریافت لیست شما: ${error.message}</p>`;
+                    DOMElements.myListContent.innerHTML = `<p class="text-red-500">خطا در دریافت لیست شما: ${error.message}</p>`;
                 } finally {
                     UIManager.showLoader(false);
                 }
             }
         };
         
-        // --- Full Details Page Logic ---
-        UIManager.showDetailsPage = async function(id) {
-            if (isTransitioning) return; isTransitioning = true;
-            mainPage.classList.add('hidden');
-            detailsPage.innerHTML = `<div class="flex justify-center items-center min-h-screen"><div class="loader"></div></div>`;
-            detailsPage.classList.remove('hidden'); detailsPage.classList.add('page-enter-active');
-            window.scrollTo(0, 0);
-            
-            try {
-                const result = await APIManager.fetchJikan(`anime/${id}/full`);
-                const data = result.data;
-                const detailTermTranslations = { "Currently Airing": "در حال پخش", "Finished Airing": "پخش تمام شده", "Not yet aired": "هنوز پخش نشده", "Original": "اورجینال", "Manga": "مانگا", "Light novel": "لایت ناول", "Web manga": "وب مانگا", "Game": "بازی", "Visual novel": "ویژوال ناول", "Other": "سایر", "TV": "تلویزیونی", "Movie": "سینمایی", "OVA": "او وی ای", "Special": "ویژه", "ONA": "اونا" };
-                const studios = data.studios.map(s => s.name).join(', ') || 'نامشخص';
-                const translatedStatus = detailTermTranslations[data.status] || data.status;
-                const translatedType = detailTermTranslations[data.type] || data.type;
-                const translatedSource = detailTermTranslations[data.source] || data.source;
-
-                detailsPage.innerHTML = `
-                    <button id="back-button" class="fixed top-6 right-6 glass-ui hover:bg-gray-700 font-bold p-3 rounded-full z-20 shadow-lg">&larr;</button>
-                    <div class="container mx-auto p-4 md:p-8 max-w-7xl pb-24">
-                        <div class="flex flex-col md:flex-row md:gap-12">
-                            <div class="w-full md:w-1/3 lg:w-1/4 flex-shrink-0 mb-8 md:mb-0"><div class="neon-box"><img src="${data.images.webp.large_image_url || 'https://placehold.co/400x600/161b22/8b949e?text=بدون+عکس'}" alt="Poster"></div></div>
-                            <div id="main-content-column" class="w-full md:w-2/3 lg:w-3/4">
-                                <div class="translating-placeholder is-translating mb-2"><h2 data-translate-key="title" class="text-4xl lg:text-5xl font-black accent-text">${data.title}</h2></div>
-                                <p class="text-lg text-secondary mb-1 mt-2">عنوان اصلی: ${data.title}</p>
-                                <p class="text-md text-secondary mb-6">عنوان انگلیسی: ${data.title_english || 'ندارد'}</p>
-                                <div class="flex flex-wrap gap-4 mb-8 text-center">
-                                    <div class="glass-ui p-4 rounded-xl flex-grow"><span class="font-bold text-yellow-400 text-3xl">${data.score || 'N/A'}</span><span class="text-xs block text-secondary mt-1">امتیاز</span></div>
-                                    <div class="glass-ui p-4 rounded-xl flex-grow"><span class="font-bold text-3xl">${data.members?.toLocaleString() || 'N/A'}</span><span class="text-xs block text-secondary mt-1">اعضا</span></div>
-                                    <div class="glass-ui p-4 rounded-xl flex-grow"><span class="font-bold text-3xl">#${data.rank?.toLocaleString() || 'N/A'}</span><span class="text-xs block text-secondary mt-1">رتبه</span></div>
-                                </div>
-                                <div class="mb-8"><h3 class="font-bold text-xl mb-3">ژانرها</h3><div id="genres-container" class="flex flex-wrap gap-2">${data.genres.map((g, i) => `<div class="translating-placeholder is-translating"><span data-translate-key="genre_${i}" class="bg-secondary border border-color text-sm font-semibold px-3 py-1 rounded-full">${g.name}</span></div>`).join('')}</div></div>
-                                <div class="mb-8"><h3 class="font-bold text-xl mb-3">خلاصه داستان</h3><div class="translating-placeholder is-translating"><p data-translate-key="synopsis" class="text-secondary text-base leading-relaxed whitespace-pre-wrap">${data.synopsis || 'موجود نیست.'}</p></div></div>
-                                <div class="glass-ui p-6 rounded-xl"><h3 class="font-bold text-xl mb-4">جزئیات</h3><div id="details-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-secondary">
-                                    <p><strong>وضعیت:</strong> ${translatedStatus}</p><p><strong>نوع:</strong> ${translatedType}</p><p><strong>منبع:</strong> ${translatedSource}</p>
-                                    <p><strong>استودیو:</strong> ${studios}</p><p><strong>قسمت‌ها:</strong> ${data.episodes || 'N/A'}</p><p><strong>تاریخ پخش:</strong> ${new Date(data.aired.from).toLocaleDateString('fa-IR')}</p>
-                                </div></div>
-                            </div>
-                        </div>
-                    </div>`;
-                
-                document.getElementById('back-button').addEventListener('click', this.showMainPage);
-                isTransitioning = false;
-                
-                const textsToTranslate = { title: data.title, synopsis: data.synopsis || "", ...Object.fromEntries(data.genres.map((g, i) => [`genre_${i}`, g.name])) };
-                await APIManager.batchTranslate(Object.values(textsToTranslate));
-                document.querySelectorAll('[data-translate-key]').forEach(el => {
-                    const key = el.dataset.translateKey; const originalText = textsToTranslate[key];
-                    if (translationCache.has(originalText)) { el.textContent = translationCache.get(originalText); }
-                    el.parentElement.classList.remove('is-translating');
-                });
-
-                if (data.trailer && data.trailer.embed_url) {
-                    const trailerSection = document.createElement('div');
-                    trailerSection.className = 'mt-8';
-                    trailerSection.innerHTML = `<h3 class="font-bold text-xl mb-4">تریلر</h3><div class="responsive-iframe-container rounded-xl overflow-hidden shadow-lg"><iframe class="responsive-iframe" src="${data.trailer.embed_url.replace('autoplay=1', 'autoplay=0')}" frameborder="0" allowfullscreen></iframe></div>`;
-                    document.getElementById('main-content-column').appendChild(trailerSection);
-                }
-
-                if (data.status === "Currently Airing") {
-                    APIManager.fetchJikan(`anime/${id}/episodes`).then(episodesResult => {
-                        if (episodesResult.data && episodesResult.data.length > 0) {
-                            const lastEpisode = episodesResult.data[episodesResult.data.length - 1];
-                            const detailsGrid = document.getElementById('details-grid');
-                            if (detailsGrid) { const p = document.createElement('p'); p.innerHTML = `<strong>آخرین قسمت:</strong> ${lastEpisode.mal_id} (${new Date(lastEpisode.aired).toLocaleDateString('fa-IR')})`; detailsGrid.appendChild(p); }
-                        }
-                    }).catch(err => console.error("Could not fetch episodes:", err));
-                }
-
-            } catch (error) {
-                detailsPage.innerHTML = `<button id="back-button" class="fixed top-6 right-6 glass-ui hover:bg-gray-700 font-bold p-3 rounded-full z-20 shadow-lg">&larr;</button><div class="flex justify-center items-center min-h-screen"><p class="p-8 text-center text-red-400 text-xl font-bold">${error.message}</p></div>`;
-                document.getElementById('back-button').addEventListener('click', this.showMainPage);
-                isTransitioning = false;
-            }
-        }
-
         App.init();
     </script>
 
