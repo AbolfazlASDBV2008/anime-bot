@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>پلتفرم انیمه شما</title>
+    <title>جستجوگر انیمه</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,22 +15,10 @@
             --bg-color: #0d1117; --bg-secondary: #161b22; --text-color: #c9d1d9;
             --text-secondary: #8b949e; --border-color: #30363d; --accent-color: hsl(180, 100%, 50%);
         }
-        body.light {
-            --bg-color: #ffffff; --bg-secondary: #f6f8fa; --text-color: #24292f;
-            --text-secondary: #57606a; --border-color: #d0d7de; --accent-color: hsl(212, 100%, 50%);
-        }
         body {
             background-color: var(--bg-color); color: var(--text-color);
             font-family: 'Vazirmatn', sans-serif;
-            transition: background-color 0.3s, color 0.3s;
         }
-        .bg-secondary { background-color: var(--bg-secondary); }
-        .border-color { border-color: var(--border-color); }
-        .text-secondary { color: var(--text-secondary); }
-        .accent-text { color: var(--accent-color); }
-        .accent-ring:focus { ring-color: var(--accent-color); }
-        .accent-bg { background-color: var(--accent-color); }
-        
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: var(--bg-secondary); }
         ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
@@ -42,7 +30,7 @@
         @keyframes page-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes page-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(10px); } }
 
-        .glass-ui { background: color-mix(in srgb, var(--bg-secondary) 70%, transparent); backdrop-filter: blur(10px); border: 1px solid var(--border-color); }
+        .glass-ui { background: rgba(22, 27, 34, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(48, 54, 61, 0.5); }
         
         .result-card:hover { transform: translateY(-10px); box-shadow: 0 0 25px color-mix(in srgb, var(--accent-color) 25%, transparent); }
         .neon-box { position: relative; border-radius: 12px; }
@@ -60,38 +48,32 @@
 </head>
 <body>
 
-    <header class="sticky top-0 z-30 w-full p-4 glass-ui">
-        <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500">
-                Anime<span class="accent-text">Verse</span>
-            </h1>
-            <div id="user-menu" class="relative"></div>
-        </div>
-    </header>
-
     <main id="main-page" class="container mx-auto p-4 md:p-8">
-        <div id="tabs-container" class="mb-8 border-b border-color flex justify-center">
-            <button data-tab="search" class="tab-button accent-text border-b-2 border-color p-4">جستجو</button>
-            <button data-tab="my-list" class="tab-button text-secondary p-4">لیست من</button>
-        </div>
-        <div id="search-content">
-            <form id="search-form" class="max-w-2xl mx-auto my-12">
-                <div class="relative"><input type="search" id="search-input" class="glass-ui w-full p-4 pr-12 text-lg rounded-full accent-ring focus:outline-none placeholder-gray-500" placeholder="نام انیمه..." required></div>
-            </form>
-            <div id="search-results" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8"></div>
-        </div>
-        <div id="my-list-content" class="hidden text-center grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8"></div>
+        <header class="text-center mb-12">
+            <h1 class="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 mb-2">
+                جستجوگر انیمه
+            </h1>
+            <p class="text-secondary">دنیای انیمه را کاوش کنید</p>
+        </header>
+
+        <form id="search-form" class="max-w-2xl mx-auto my-12">
+            <div class="relative">
+                <input type="search" id="search-input" class="glass-ui w-full p-4 pr-12 text-lg rounded-full accent-ring focus:outline-none placeholder-gray-500" placeholder="نام انیمه..." required>
+                <button type="submit" class="text-white absolute left-2.5 top-1/2 -translate-y-1/2 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 focus:ring-4 focus:outline-none focus:ring-cyan-800 font-medium rounded-full text-sm p-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </button>
+            </div>
+        </form>
+        
         <div id="loader" class="hidden justify-center items-center my-16 flex-col"><div class="loader"></div></div>
         <div id="message" class="text-center text-secondary my-8 text-lg"></div>
+        <div id="search-results" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8"></div>
     </main>
 
     <section id="details-page" class="hidden"></section>
 
     <script type="module">
         // --- CONFIGURATION ---
-        const MAL_CLIENT_ID = "8a1a94e6fd6170b406235f9ef64aa03f";
-        const MAL_CLIENT_SECRET = "ccb1f6806ed7524ddf57000a81e6aace393d55fd030c492f0bd942c64fc69a3b";
-        const REDIRECT_URI = "https://velvety-crumble-195974.netlify.app/";
         const JIKAN_API_BASE = "https://api.jikan.moe/v4";
         const CORS_PROXY = "https://corsproxy.io/?";
 
@@ -99,15 +81,11 @@
         const DOMElements = {
             mainPage: document.getElementById('main-page'),
             detailsPage: document.getElementById('details-page'),
-            searchContent: document.getElementById('search-content'),
             searchForm: document.getElementById('search-form'),
             searchInput: document.getElementById('search-input'),
             searchResults: document.getElementById('search-results'),
             messageDiv: document.getElementById('message'),
             loader: document.getElementById('loader'),
-            userMenu: document.getElementById('user-menu'),
-            tabsContainer: document.getElementById('tabs-container'),
-            myListContent: document.getElementById('my-list-content'),
         };
 
         // --- State ---
@@ -116,9 +94,9 @@
 
         // --- API MANAGER ---
         const APIManager = {
-            async fetchWithProxy(url, options = {}) {
+            async fetchWithProxy(url) {
                 try {
-                    const response = await fetch(CORS_PROXY + encodeURIComponent(url), options);
+                    const response = await fetch(CORS_PROXY + encodeURIComponent(url));
                     if (!response.ok) {
                         const errorData = await response.json().catch(() => ({ message: response.statusText }));
                         throw new Error(`خطا در ارتباط با پروکسی (${response.status}): ${errorData.message}`);
@@ -131,10 +109,6 @@
             },
             async fetchJikan(endpoint) {
                 return this.fetchWithProxy(`${JIKAN_API_BASE}/${endpoint}`);
-            },
-            async fetchMAL(endpoint, token) {
-                const url = `https://api.myanimelist.net/v2/${endpoint}`;
-                return this.fetchWithProxy(url, { headers: { 'Authorization': `Bearer ${token}` } });
             },
             async batchTranslate(texts) {
                 const uniqueTexts = [...new Set(texts.filter(t => t && !translationCache.has(t)))];
@@ -155,54 +129,6 @@
             }
         };
 
-        // --- AUTH MANAGER ---
-        const AuthManager = {
-            generatePkceVerifier() {
-                const randomBytes = crypto.getRandomValues(new Uint8Array(64));
-                return btoa(String.fromCharCode.apply(null, randomBytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-            },
-            login() {
-                const pkceCodeVerifier = this.generatePkceVerifier();
-                localStorage.setItem('pkce_code_verifier', pkceCodeVerifier);
-                const params = new URLSearchParams({
-                    response_type: 'code', client_id: MAL_CLIENT_ID,
-                    code_challenge: pkceCodeVerifier, state: 'RequestID',
-                    redirect_uri: REDIRECT_URI
-                });
-                window.location.href = `https://myanimelist.net/v1/oauth2/authorize?${params.toString()}`;
-            },
-            logout() {
-                localStorage.clear();
-                UIManager.renderUserMenu();
-                UIManager.switchTab('search');
-            },
-            async exchangeCodeForToken(code) {
-                const verifier = localStorage.getItem('pkce_code_verifier');
-                if (!verifier) throw new Error("کد تایید PKCE یافت نشد. لطفاً دوباره تلاش کنید.");
-                
-                const tokenUrl = 'https://myanimelist.net/v1/oauth2/token';
-                const body = new URLSearchParams({
-                    'client_id': MAL_CLIENT_ID, 'client_secret': MAL_CLIENT_SECRET,
-                    'grant_type': 'authorization_code', 'code': code,
-                    'redirect_uri': REDIRECT_URI, 'code_verifier': verifier
-                });
-                const data = await APIManager.fetchWithProxy(tokenUrl, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() });
-                localStorage.setItem('mal_access_token', data.access_token);
-                localStorage.setItem('mal_refresh_token', data.refresh_token);
-                localStorage.removeItem('pkce_code_verifier');
-                await this.fetchAndStoreUserInfo();
-                window.history.replaceState({}, document.title, REDIRECT_URI);
-            },
-            async fetchAndStoreUserInfo() {
-                const token = localStorage.getItem('mal_access_token');
-                if (!token) return;
-                try {
-                    const response = await APIManager.fetchMAL(`users/@me`, token);
-                    localStorage.setItem('mal_user_info', JSON.stringify({ name: response.name, picture: response.picture }));
-                } catch (error) { console.error("Failed to fetch user info:", error); }
-            }
-        };
-
         // --- UI MANAGER ---
         const UIManager = {
             showLoader(show) { DOMElements.loader.style.display = show ? 'flex' : 'none'; },
@@ -211,32 +137,8 @@
                 DOMElements.messageDiv.classList.toggle('text-red-500', isError);
                 DOMElements.messageDiv.classList.toggle('text-secondary', !isError);
             },
-            renderUserMenu() {
-                const userInfo = JSON.parse(localStorage.getItem('mal_user_info'));
-                if (userInfo) {
-                    DOMElements.userMenu.innerHTML = `<div class="flex items-center gap-2"><span class="text-sm font-bold">${userInfo.name}</span><img src="${userInfo.picture}" class="w-8 h-8 rounded-full border-2 border-color"><button id="logout-button" class="p-2 rounded-full hover:bg-gray-700" title="خروج"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg></button></div>`;
-                    document.getElementById('logout-button').addEventListener('click', AuthManager.logout);
-                } else {
-                    DOMElements.userMenu.innerHTML = `<button id="login-button" class="accent-bg text-white font-bold py-2 px-4 rounded-lg">ورود با MyAnimeList</button>`;
-                    document.getElementById('login-button').addEventListener('click', () => AuthManager.login());
-                }
-            },
-            switchTab(tabName) {
-                document.querySelectorAll('.tab-button').forEach(t => { t.classList.remove('accent-text', 'border-color'); t.classList.add('text-secondary'); });
-                const activeTab = document.querySelector(`.tab-button[data-tab="${tabName}"]`);
-                activeTab.classList.add('accent-text', 'border-color');
-                activeTab.classList.remove('text-secondary');
-                if (tabName === 'search') {
-                    DOMElements.searchContent.classList.remove('hidden');
-                    DOMElements.myListContent.classList.add('hidden');
-                } else {
-                    DOMElements.searchContent.classList.add('hidden');
-                    DOMElements.myListContent.classList.remove('hidden');
-                    App.loadMyList();
-                }
-            },
-            displayResults(results, container = DOMElements.searchResults) {
-                container.innerHTML = '';
+            displayResults(results) {
+                DOMElements.searchResults.innerHTML = '';
                 if (!results || results.length === 0) {
                     this.showMessage("هیچ نتیجه‌ای یافت نشد.");
                     return;
@@ -245,9 +147,9 @@
                     const node = item.node || item;
                     const card = document.createElement('div');
                     card.className = 'result-card rounded-xl overflow-hidden shadow-lg flex flex-col bg-secondary border border-color';
-                    card.innerHTML = `<div class="overflow-hidden rounded-t-xl flex-shrink-0"><img src="${node.main_picture?.large || 'https://placehold.co/400x600/161b22/8b949e?text=بدون+عکس'}" alt="${node.title}" class="w-full h-80 object-cover"></div><div class="p-5 flex flex-col flex-grow"><h3 class="font-bold text-lg truncate flex-grow" title="${node.title}">${node.title}</h3><button class="mt-4 w-full accent-bg text-white font-bold py-2 px-4 rounded-lg transition-opacity hover:opacity-80" data-id="${node.id}">اطلاعات بیشتر</button></div>`;
-                    card.querySelector('button').addEventListener('click', (e) => { e.stopPropagation(); this.showDetailsPage(node.id); });
-                    container.appendChild(card);
+                    card.innerHTML = `<div class="overflow-hidden rounded-t-xl flex-shrink-0"><img src="${node.images.webp.large_image_url || 'https://placehold.co/400x600/161b22/8b949e?text=بدون+عکس'}" alt="${node.title}" class="w-full h-80 object-cover"></div><div class="p-5 flex flex-col flex-grow"><h3 class="font-bold text-lg truncate flex-grow" title="${node.title}">${node.title}</h3><button class="mt-4 w-full accent-bg text-white font-bold py-2 px-4 rounded-lg transition-opacity hover:opacity-80" data-id="${node.mal_id}">اطلاعات بیشتر</button></div>`;
+                    card.querySelector('button').addEventListener('click', (e) => { e.stopPropagation(); this.showDetailsPage(node.mal_id); });
+                    DOMElements.searchResults.appendChild(card);
                 });
             },
             showMainPage() {
@@ -328,7 +230,7 @@
                     }
 
                 } catch (error) {
-                    detailsPage.innerHTML = `<button id="back-button" class="fixed top-6 right-6 glass-ui hover:bg-gray-700 font-bold p-3 rounded-full z-20 shadow-lg">&larr;</button><div class="flex justify-center items-center min-h-screen"><p class="p-8 text-center text-red-400 text-xl font-bold">${error.message}</p></div>`;
+                    DOMElements.detailsPage.innerHTML = `<button id="back-button" class="fixed top-6 right-6 glass-ui hover:bg-gray-700 font-bold p-3 rounded-full z-20 shadow-lg">&larr;</button><div class="flex justify-center items-center min-h-screen"><p class="p-8 text-center text-red-400 text-xl font-bold">${error.message}</p></div>`;
                     document.getElementById('back-button').addEventListener('click', this.showMainPage);
                     isTransitioning = false;
                 }
@@ -337,32 +239,11 @@
 
         // --- APP INITIALIZER ---
         const App = {
-            async init() {
-                UIManager.renderUserMenu();
+            init() {
                 this.setupEventListeners();
-                const urlParams = new URLSearchParams(window.location.search);
-                const authCode = urlParams.get('code');
-                if (authCode) {
-                    UIManager.showLoader(true);
-                    UIManager.showMessage('در حال تکمیل فرآیند ورود...');
-                    try {
-                        await AuthManager.exchangeCodeForToken(authCode);
-                        UIManager.renderUserMenu();
-                        UIManager.switchTab('my-list');
-                    } catch (error) {
-                        UIManager.showMessage(error.message, true);
-                    } finally {
-                        UIManager.showLoader(false);
-                        if(!DOMElements.messageDiv.textContent.includes("خطا")) UIManager.showMessage('');
-                    }
-                } else {
-                    UIManager.showMessage('برای شروع، نام یک انیمه را جستجو کنید.');
-                }
+                UIManager.showMessage('برای شروع، نام یک انیمه را جستجو کنید.');
             },
             setupEventListeners() {
-                DOMElements.tabsContainer.addEventListener('click', (e) => {
-                    if (e.target.matches('.tab-button')) UIManager.switchTab(e.target.dataset.tab);
-                });
                 DOMElements.searchForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const query = DOMElements.searchInput.value.trim();
@@ -379,19 +260,6 @@
                         UIManager.showLoader(false);
                     }
                 });
-            },
-            async loadMyList() {
-                DOMElements.myListContent.innerHTML = '';
-                UIManager.showLoader(true);
-                try {
-                    const token = localStorage.getItem('mal_access_token');
-                    const response = await APIManager.fetchMAL(`users/@me/animelist?fields=list_status&limit=100&sort=list_updated_at`, token);
-                    UIManager.displayResults(response.data, DOMElements.myListContent);
-                } catch (error) {
-                    DOMElements.myListContent.innerHTML = `<p class="text-red-500">خطا در دریافت لیست شما: ${error.message}</p>`;
-                } finally {
-                    UIManager.showLoader(false);
-                }
             }
         };
         
