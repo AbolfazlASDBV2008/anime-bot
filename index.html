@@ -91,7 +91,6 @@
         // --- CONFIGURATION ---
         const MAL_CLIENT_ID = "8a1a94e6fd6170b406235f9ef64aa03f";
         const MAL_CLIENT_SECRET = "ccb1f6806ed7524ddf57000a81e6aace393d55fd030c492f0bd942c64fc69a3b";
-        // This URI is now hardcoded to your exact Netlify URL for maximum reliability.
         const REDIRECT_URI = "https://velvety-crumble-195974.netlify.app/";
         const JIKAN_API_BASE = "https://api.jikan.moe/v4";
         const CORS_PROXY = "https://corsproxy.io/?";
@@ -120,9 +119,7 @@
                     const response = await fetch(`${JIKAN_API_BASE}/${endpoint}`);
                     if (!response.ok) throw new Error(`Jikan API Error: ${response.status}`);
                     return await response.json();
-                } catch (error) {
-                    throw new Error("خطا در ارتباط با سرور انیمه.");
-                }
+                } catch (error) { throw new Error("خطا در ارتباط با سرور انیمه."); }
             },
             async fetchMAL(endpoint, options = {}) {
                 const token = localStorage.getItem('mal_access_token');
@@ -134,9 +131,7 @@
                     });
                     if (!response.ok) throw new Error(`MAL API Error: ${response.status}`);
                     return await response.json();
-                } catch (error) {
-                    throw new Error("خطا در ارتباط با سرور MyAnimeList.");
-                }
+                } catch (error) { throw new Error("خطا در ارتباط با سرور MyAnimeList."); }
             },
             async batchTranslate(texts) {
                 const uniqueTexts = [...new Set(texts.filter(t => t && !translationCache.has(t)))];
@@ -167,7 +162,15 @@
             login() {
                 this.pkceCodeVerifier = this.generatePkceVerifier();
                 localStorage.setItem('pkce_code_verifier', this.pkceCodeVerifier);
-                const authUrl = `https://myanimelist.net/v1/oauth2/authorize?response_type=code&client_id=${MAL_CLIENT_ID}&code_challenge=${this.pkceCodeVerifier}&state=RequestID&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+                // Correctly construct the URL without double encoding
+                const params = new URLSearchParams({
+                    response_type: 'code',
+                    client_id: MAL_CLIENT_ID,
+                    code_challenge: this.pkceCodeVerifier,
+                    state: 'RequestID',
+                    redirect_uri: REDIRECT_URI
+                });
+                const authUrl = `https://myanimelist.net/v1/oauth2/authorize?${params.toString()}`;
                 window.location.href = authUrl;
             },
             logout() {
